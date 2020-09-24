@@ -68,6 +68,10 @@ func (*DefaultConfigurator) Configure(cp resource.Composite, cd resource.Compose
 	// store it here so that we can reset it after unmarshalling.
 	name := cd.GetName()
 	namespace := cd.GetNamespace()
+	// PD -  support for namespaced objects - use the claim namespace
+	if namespace == "" {
+		namespace = cp.GetLabels()[LabelKeyClaimNamespace]
+	}
 	if err := json.Unmarshal(t.Base.Raw, cd); err != nil {
 		return errors.Wrap(err, errUnmarshal)
 	}
@@ -127,7 +131,11 @@ type APIConnectionDetailsFetcher struct {
 
 // Fetch returns the connection secret details of composed resource.
 func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (managed.ConnectionDetails, error) {
-	sref := cd.GetWriteConnectionSecretToReference()
+	// PD -  support for custom connection secrets
+	sref, err := getWriteConnectionSecretToReference(ctx, cd, t)
+	if err != nil {
+		return nil, err
+	}
 	if sref == nil {
 		return nil, nil
 	}
@@ -167,6 +175,32 @@ func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.C
 	}
 
 	return conn, nil
+}
+
+// PD - gets the secret reference when a connection custom secret path is defined
+func getWriteConnectionSecretToReference(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (*runtimev1alpha1.SecretReference, error) {
+	if t.ConnectionSecretRef == nil {
+		return cd.GetWriteConnectionSecretToReference(), nil
+	}
+
+	u, ok := cd.(*runtimecomposed.Unstructured)
+	if !ok {
+		return nil, errors.New("composed resource has to be Unstructured type")
+	}
+	paved := fieldpath.Pave(u.UnstructuredContent())
+
+	name, err := paved.GetValue(t.ConnectionSecretRef.NamePath)
+	if err != nil {
+		return nil, errors.New("Secret name not found at path: " + t.ConnectionSecretRef.NamePath)
+	}
+	namespace, err := paved.GetValue(t.ConnectionSecretRef.NamespacePath)
+	if err != nil {
+		return nil, errors.New("Secret namespace not found at path: " + t.ConnectionSecretRef.NamespacePath)
+	}
+	if name == "" || namespace == "" {
+		return nil, nil
+	}
+	return &runtimev1alpha1.SecretReference{Name: name.(string), Namespace: namespace.(string)}, nil
 }
 
 // DefaultReadinessChecker is a readiness checker which returns whether the composed

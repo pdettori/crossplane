@@ -75,6 +75,17 @@ spec:
                           type: string
                       type: object
                     type: array
+                  connectionSecretRef:
+                    description: ConnectionSecretRef allows users to define custom paths for the connection secret
+                    properties:
+                      namePath:
+                        type: string
+                      namespacePath:
+                        type: string
+                    required:
+                    - namePath
+                    - namespacePath
+                    type: object
                   patches:
                     description: Patches will be applied as overlay to the base resource.
                     items:
