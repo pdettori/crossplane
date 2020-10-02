@@ -132,7 +132,7 @@ type APIConnectionDetailsFetcher struct {
 // Fetch returns the connection secret details of composed resource.
 func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (managed.ConnectionDetails, error) {
 	// PD -  support for custom connection secrets
-	sref, err := getWriteConnectionSecretToReference(ctx, cd, t)
+	sref, err := getWriteConnectionSecretToReference(cd, t)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.C
 }
 
 // PD - gets the secret reference when a connection custom secret path is defined
-func getWriteConnectionSecretToReference(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (*runtimev1alpha1.SecretReference, error) {
+func getWriteConnectionSecretToReference(cd resource.Composed, t v1alpha1.ComposedTemplate) (*runtimev1alpha1.SecretReference, error) {
 	if t.ConnectionSecretRef == nil {
 		return cd.GetWriteConnectionSecretToReference(), nil
 	}
